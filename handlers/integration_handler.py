@@ -1,10 +1,30 @@
 from website_monitor import send_email_smtp, send_email, send_sms
 import sqlite3
-from cryptography.fernet import Fernet
+from security import FERNET_KEY_ENV_VAR, encrypt_secret, encryption_enabled
 
-# Generate a key for encryption
-key = Fernet.generate_key()
-cipher_suite = Fernet(key)
+SECRET_KEYS = {"sender_password", "auth_token"}
+
+
+def _secret_display_value(key, value):
+    if key in SECRET_KEYS:
+        return "<stored secret>"
+    return value
+
+
+def _store_secret(value):
+    return encrypt_secret(value)
+
+
+def _print_encryption_status():
+    if encryption_enabled():
+        print(f"Secret encryption enabled using {FERNET_KEY_ENV_VAR}.")
+    else:
+        print(
+            f"Secret encryption is not currently active because "
+            f"{FERNET_KEY_ENV_VAR} is not set. Secrets will be stored as "
+            "plaintext until you run `python generate_fernet_key.py` and add "
+            "the key to `.env`."
+        )
 
 def setup_integrations():
     while True:
@@ -141,12 +161,13 @@ def add_gmail_integration():
     print("Please add the 'client_secret.json' file to your project directory.")
 
 def add_smtp_integration():
+    _print_encryption_status()
     sender_email = input("Enter the sender email address: ")
     sender_password = input("Enter the sender email password: ")
     smtp_server = input("Enter the SMTP server address: ")
     smtp_port = input("Enter the SMTP server port: ")
 
-    encrypted_password = cipher_suite.encrypt(sender_password.encode()).decode()
+    stored_password = _store_secret(sender_password)
 
     conn = sqlite3.connect('data/webMonitor.db')
     cursor = conn.cursor()
@@ -158,7 +179,7 @@ def add_smtp_integration():
     cursor.execute('''
     INSERT INTO settings (integration_name, key, value, status)
     VALUES (?, ?, ?, ?)
-    ''', ("SMTP", "sender_password", encrypted_password, 1))
+    ''', ("SMTP", "sender_password", stored_password, 1))
     cursor.execute('''
     INSERT INTO settings (integration_name, key, value, status)
     VALUES (?, ?, ?, ?)
@@ -174,11 +195,12 @@ def add_smtp_integration():
     print("SMTP Email Integration added successfully.")
 
 def add_twilio_integration():
+    _print_encryption_status()
     account_sid = input("Enter the Twilio Account SID: ")
     auth_token = input("Enter the Twilio Auth Token: ")
     from_phone = input("Enter the Twilio phone number: ")
 
-    encrypted_auth_token = cipher_suite.encrypt(auth_token.encode()).decode()
+    stored_auth_token = _store_secret(auth_token)
 
     conn = sqlite3.connect('data/webMonitor.db')
     cursor = conn.cursor()
@@ -190,7 +212,7 @@ def add_twilio_integration():
     cursor.execute('''
     INSERT INTO settings (integration_name, key, value, status)
     VALUES (?, ?, ?, ?)
-    ''', ("Twilio", "auth_token", encrypted_auth_token, 1))
+    ''', ("Twilio", "auth_token", stored_auth_token, 1))
     cursor.execute('''
     INSERT INTO settings (integration_name, key, value, status)
     VALUES (?, ?, ?, ?)
@@ -219,10 +241,11 @@ def edit_smtp_integration():
         return
 
     for key, value in settings:
-        new_value = input(f"Enter new value for {key} [{value}]: ")
+        display_value = _secret_display_value(key, value)
+        new_value = input(f"Enter new value for {key} [{display_value}]: ")
         if new_value:
             if key == "sender_password":
-                new_value = cipher_suite.encrypt(new_value.encode()).decode()
+                new_value = _store_secret(new_value)
             cursor.execute('''
             UPDATE settings
             SET value = ?
@@ -247,10 +270,11 @@ def edit_twilio_integration():
         return
 
     for key, value in settings:
-        new_value = input(f"Enter new value for {key} [{value}]: ")
+        display_value = _secret_display_value(key, value)
+        new_value = input(f"Enter new value for {key} [{display_value}]: ")
         if new_value:
             if key == "auth_token":
-                new_value = cipher_suite.encrypt(new_value.encode()).decode()
+                new_value = _store_secret(new_value)
             cursor.execute('''
             UPDATE settings
             SET value = ?

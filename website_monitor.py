@@ -11,12 +11,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from requests import HTTPError
 from twilio.rest import Client
-from cryptography.fernet import Fernet
 import json
-
-# Load the encryption key
-key = Fernet.generate_key()
-cipher_suite = Fernet(key)
+from security import SecretConfigurationError, decrypt_secret
 
 def run_monitor():
     print("Running monitor...")
@@ -110,7 +106,11 @@ def send_sms(phone_number, message):
 
     twilio_settings = {key: value for key, value in settings}
     account_sid = twilio_settings['account_sid']
-    auth_token = cipher_suite.decrypt(twilio_settings['auth_token'].encode()).decode()
+    try:
+        auth_token = decrypt_secret(twilio_settings['auth_token'])
+    except SecretConfigurationError as e:
+        print(f"Twilio Integration failed: {e}")
+        return
     from_phone = twilio_settings['from_phone']
 
     client = Client(account_sid, auth_token)
@@ -132,7 +132,11 @@ def send_email_smtp(email, subject, message):
 
     smtp_settings = {key: value for key, value in settings}
     sender_email = smtp_settings['sender_email']
-    sender_password = cipher_suite.decrypt(smtp_settings['sender_password'].encode()).decode()
+    try:
+        sender_password = decrypt_secret(smtp_settings['sender_password'])
+    except SecretConfigurationError as e:
+        print(f"SMTP Email Integration failed: {e}")
+        return
     smtp_server = smtp_settings['smtp_server']
     smtp_port = smtp_settings['smtp_port']
 

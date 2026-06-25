@@ -48,7 +48,17 @@ WebsiteMonitor/
    pip install -r requirements.txt
    ```
 
-3. Initialize the database:
+3. Optional: enable encrypted secret storage for SMTP and Twilio credentials:
+   ```bash
+   python generate_fernet_key.py
+   cp .env.example .env
+   ```
+   Then paste the generated `PYDOG_FERNET_KEY` value into `.env`.
+
+   If `PYDOG_FERNET_KEY` is not set, the application will still run, but SMTP
+   and Twilio secrets are stored as plaintext and the setup flow will warn you.
+
+4. Initialize the database:
    ```bash
    python -c "from data.database_tables import create_database; create_database()"
    ```
