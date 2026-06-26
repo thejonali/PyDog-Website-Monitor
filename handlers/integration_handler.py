@@ -1,5 +1,5 @@
 from website_monitor import send_email_smtp, send_email, send_sms
-import sqlite3
+from db import connect_database
 from security import FERNET_KEY_ENV_VAR, encrypt_secret, encryption_enabled
 
 SECRET_KEYS = {"sender_password", "auth_token"}
@@ -169,7 +169,7 @@ def add_smtp_integration():
 
     stored_password = _store_secret(sender_password)
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute('''
@@ -202,7 +202,7 @@ def add_twilio_integration():
 
     stored_auth_token = _store_secret(auth_token)
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
 
     cursor.execute('''
@@ -228,7 +228,7 @@ def edit_gmail_integration():
     print("Please add the 'client_secret.json' file to your project directory if it is not already present.")
 
 def edit_smtp_integration():
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT key, value FROM settings WHERE integration_name = 'SMTP' AND status = 1
@@ -257,7 +257,7 @@ def edit_smtp_integration():
     print("SMTP Email Integration updated successfully.")
 
 def edit_twilio_integration():
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT key, value FROM settings WHERE integration_name = 'Twilio' AND status = 1
@@ -286,7 +286,7 @@ def edit_twilio_integration():
     print("Twilio Integration updated successfully.")
 
 def edit_monitor_header():
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT key, value FROM settings WHERE integration_name = 'monitor_header' AND status = 1

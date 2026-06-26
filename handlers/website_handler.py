@@ -1,9 +1,9 @@
-import sqlite3
 from handlers.contact_handler import view_contacts
+from db import connect_database
 import re
 
 def view_websites():
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT id, website_url
@@ -33,7 +33,7 @@ def view_websites():
     print('-' * total_len)
 
 def view_monitored_websites():
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT w.id, w.website_url, c.contact_name, c.preferred_contact, c.email, c.phone_number
@@ -69,7 +69,7 @@ def view_monitored_websites():
     print('-' * total_len)
 
 def view_down_history():
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT dt.id, w.website_url, dt.time_stamp, dt.error_code, c.contact_name
@@ -114,7 +114,7 @@ def add_website():
         print("Invalid entry - Website URL must start with http:// or https://")
         return
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     INSERT INTO websites (website_url, monitor_status)
@@ -131,7 +131,7 @@ def remove_website():
     if unique_id == '0':
         return
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('SELECT id FROM websites WHERE id = ?', (unique_id,))
     website = cursor.fetchone()
@@ -153,7 +153,7 @@ def update_website():
     if unique_id == '0':
         return
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('SELECT website_url, monitor_status FROM websites WHERE id = ?', (unique_id,))
     website = cursor.fetchone()
@@ -190,7 +190,7 @@ def connect_contact_to_website():
     if website_id == '0':
         return
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('SELECT id FROM websites WHERE id = ?', (website_id,))
     website = cursor.fetchone()

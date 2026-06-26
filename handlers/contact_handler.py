@@ -1,7 +1,7 @@
-import sqlite3
+from db import connect_database
 
 def view_contacts():
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT id, contact_name, email, phone_number, preferred_contact
@@ -52,7 +52,7 @@ def add_contact():
         print("Invalid entry - Phone Number must be set if Preferred Contact is 'Phone'.")
         return
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     INSERT INTO contacts (contact_name, email, phone_number, preferred_contact)
@@ -69,7 +69,7 @@ def remove_contact():
     if unique_id == '0':
         return
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('SELECT id FROM contacts WHERE id = ?', (unique_id,))
     contact = cursor.fetchone()
@@ -91,7 +91,7 @@ def update_contact():
     if unique_id == '0':
         return
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('SELECT contact_name, email, phone_number, preferred_contact FROM contacts WHERE id = ?', (unique_id,))
     contact = cursor.fetchone()

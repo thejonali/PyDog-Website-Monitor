@@ -2,6 +2,13 @@
 .*
 !.gitignore
 !.env.example
+!.dockerignore
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
+
+# Keep local environment values private
+.env
 
 # Ignore Python cache files
 __pycache__/

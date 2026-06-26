@@ -5,6 +5,7 @@ import requests
 import base64
 import smtplib
 import os
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -12,12 +13,52 @@ from googleapiclient.discovery import build
 from requests import HTTPError
 from twilio.rest import Client
 import json
+from config import load_config
+from db import connect_database
+from errors import MonitorError
 from security import SecretConfigurationError, decrypt_secret
 
-def run_monitor():
-    print("Running monitor...")
+logger = logging.getLogger(__name__)
+
+
+def run_monitor(config=None, stop_event=None, once=False):
+    config = config or load_config()
+    logger.info("Monitor started", extra={"event": "monitor_started"})
+
     while True:
-        conn = sqlite3.connect('data/webMonitor.db')
+        websites, headers = load_monitor_targets(config.database_path)
+
+        if not websites:
+            logger.info("No monitored websites found", extra={"event": "monitor_no_targets"})
+
+        for website in websites:
+            if stop_event and stop_event.is_set():
+                logger.info("Monitor shutdown requested", extra={"event": "monitor_shutdown_requested"})
+                return
+            check_website(website, headers, config)
+
+        if once:
+            return
+
+        sleep_time = random.randint(
+            config.monitor_min_sleep_seconds,
+            config.monitor_max_sleep_seconds,
+        )
+        logger.info(
+            "Monitor sleeping",
+            extra={"event": "monitor_sleep", "sleep_seconds": sleep_time},
+        )
+        if stop_event:
+            if stop_event.wait(sleep_time):
+                logger.info("Monitor stopped", extra={"event": "monitor_stopped"})
+                return
+        else:
+            time.sleep(sleep_time)
+
+
+def load_monitor_targets(database_path):
+    try:
+        conn = connect_database(database_path)
         cursor = conn.cursor()
         cursor.execute('''
         SELECT w.id, w.website_url, c.id, c.contact_name, c.preferred_contact, c.email, c.phone_number
@@ -33,26 +74,78 @@ def run_monitor():
         ''')
         header_value = cursor.fetchone()
         conn.close()
+    except sqlite3.Error as exc:
+        raise MonitorError("Failed to load monitor targets.", {"database_path": str(database_path)}) from exc
 
-        if header_value:
+    if header_value:
+        try:
             headers = json.loads(header_value[0])
-        else:
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'}
+        except json.JSONDecodeError as exc:
+            raise MonitorError("Monitor header setting is not valid JSON.") from exc
+    else:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.76 Safari/537.36'
+        }
 
-        for website in websites:
-            website_id, website_url, contact_id, contact_name, preferred_contact, email, phone_number = website
-            try:
-                response = requests.get(website_url, headers=headers)
-                if response.status_code != 200:
-                    notify_contact(website_id, website_url, contact_id, contact_name, preferred_contact, email, phone_number, response.status_code)
-            except requests.RequestException as e:
-                notify_contact(website_id, website_url, contact_id, contact_name, preferred_contact, email, phone_number, str(e))
+    return websites, headers
 
-        sleep_time = random.randint(180, 300)
-        print("Website: ", website_url, " is ok. Sleeping for", sleep_time, "seconds...")
-        time.sleep(sleep_time)
 
-def notify_contact(website_id, website_url, contact_id, contact_name, preferred_contact, email, phone_number, error_code):
+def check_website(website, headers, config):
+    website_id, website_url, contact_id, contact_name, preferred_contact, email, phone_number = website
+    try:
+        response = requests.get(
+            website_url,
+            headers=headers,
+            timeout=config.request_timeout_seconds,
+        )
+        if response.status_code == 200:
+            logger.info(
+                "Website check succeeded",
+                extra={
+                    "event": "website_check_ok",
+                    "website_id": website_id,
+                    "website_url": website_url,
+                    "status_code": response.status_code,
+                },
+            )
+            return
+
+        notify_contact(
+            website_id,
+            website_url,
+            contact_id,
+            contact_name,
+            preferred_contact,
+            email,
+            phone_number,
+            str(response.status_code),
+            config.database_path,
+        )
+    except requests.RequestException as exc:
+        notify_contact(
+            website_id,
+            website_url,
+            contact_id,
+            contact_name,
+            preferred_contact,
+            email,
+            phone_number,
+            str(exc),
+            config.database_path,
+        )
+
+
+def notify_contact(
+    website_id,
+    website_url,
+    contact_id,
+    contact_name,
+    preferred_contact,
+    email,
+    phone_number,
+    error_code,
+    database_path=None,
+):
     msgText = f"Alert: The website {website_url} is down. Error code: {error_code}"
     msgHTML = f"<p>Alert: The website <a href='{website_url}'>{website_url}</a> is down.</p><p>Error code: {error_code}</p>"
     if preferred_contact == 'email':
@@ -63,7 +156,7 @@ def notify_contact(website_id, website_url, contact_id, contact_name, preferred_
     elif preferred_contact == 'phone':
         send_sms(phone_number, msgText)
 
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database(database_path)
     cursor = conn.cursor()
     cursor.execute('''
     INSERT INTO down_tracking (website_id, error_code, sent_contact)
@@ -71,6 +164,15 @@ def notify_contact(website_id, website_url, contact_id, contact_name, preferred_
     ''', (website_id, error_code, contact_id))
     conn.commit()
     conn.close()
+    logger.warning(
+        "Website down notification recorded",
+        extra={
+            "event": "website_down",
+            "website_id": website_id,
+            "website_url": website_url,
+            "error_code": error_code,
+        },
+    )
 
 def send_email(email, msgText, msgHTML, website_url):
     SCOPES = [
@@ -96,7 +198,7 @@ def send_email(email, msgText, msgHTML, website_url):
         message = None
 
 def send_sms(phone_number, message):
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT key, value FROM settings WHERE integration_name = 'Twilio' AND status = 1
@@ -122,7 +224,7 @@ def send_sms(phone_number, message):
     print(f"Sending SMS to {phone_number}: {message}")
 
 def send_email_smtp(email, subject, message):
-    conn = sqlite3.connect('data/webMonitor.db')
+    conn = connect_database()
     cursor = conn.cursor()
     cursor.execute('''
     SELECT key, value FROM settings WHERE integration_name = 'SMTP' AND status = 1

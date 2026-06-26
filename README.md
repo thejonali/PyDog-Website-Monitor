@@ -58,7 +58,14 @@ WebsiteMonitor/
    If `PYDOG_FERNET_KEY` is not set, the application will still run, but SMTP
    and Twilio secrets are stored as plaintext and the setup flow will warn you.
 
-4. Initialize the database:
+4. Optional: create a runtime config file:
+   ```bash
+   cp pydog.example.ini pydog.ini
+   ```
+   Config values load in this order: defaults, optional INI file, then
+   environment variables. Use `--config pydog.ini` or set `PYDOG_CONFIG_FILE`.
+
+5. Initialize or migrate the database:
    ```bash
    python -c "from data.database_tables import create_database; create_database()"
    ```
@@ -72,6 +79,32 @@ python main.py
 
 ### Command-Line Options
 - `--run-background`: Run the monitor in the background without the interactive menu.
+- `--service`: Run the monitor as a long-lived service with graceful shutdown.
+- `--config <path>`: Load runtime settings from an INI config file.
+
+### Environment Variables
+- `PYDOG_CONFIG_FILE`: Optional path to an INI config file.
+- `PYDOG_DB_PATH`: SQLite database path. Defaults to `data/webMonitor.db`.
+- `PYDOG_MONITOR_MIN_SLEEP_SECONDS`: Minimum monitor sleep interval.
+- `PYDOG_MONITOR_MAX_SLEEP_SECONDS`: Maximum monitor sleep interval.
+- `PYDOG_REQUEST_TIMEOUT_SECONDS`: HTTP request timeout.
+- `PYDOG_LOG_LEVEL`: Python logging level.
+- `PYDOG_LOG_FORMAT`: `text` or `json`.
+- `PYDOG_FERNET_KEY`: Optional Fernet key for encrypted SMTP/Twilio secrets.
+
+### Service and Docker Mode
+Run as a service process:
+```bash
+python main.py --service --config pydog.ini
+```
+
+Build and run with Docker:
+```bash
+docker build -t pydog-website-monitor .
+docker run --rm -v "$PWD/data:/app/data" --env-file .env pydog-website-monitor
+```
+
+The service handles `SIGINT` and `SIGTERM` so containers and process managers can stop it cleanly between checks.
 
 ### Interactive Menu
 1. **Run Monitor**: Start monitoring websites.
@@ -93,6 +126,16 @@ python main.py
 ## Contributing
 
 Contributions are welcome! Feel free to submit issues or pull requests to improve the project.
+
+## Development
+
+Install development dependencies and run tests:
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+CI runs the same pytest suite on pushes and pull requests.
 
 ## License
 
