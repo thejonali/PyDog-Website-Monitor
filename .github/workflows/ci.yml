@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-  pull_request:
 
 permissions:
   contents: read
@@ -27,4 +26,4 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run tests
-        run: pytest
+        run: python -m pytest
