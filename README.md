@@ -5,7 +5,7 @@ PyDog Website Monitor is a Python-based application designed to monitor the avai
 ## Features
 
 - **Website Monitoring**: Continuously monitor websites and detect downtime.
-- **Notifications**: Notify contacts via email or SMS when a website is down.
+- **Notifications**: Notify contacts via email or SMS on outages and recoveries, with delivery status recorded for each attempt.
 - **Contact Management**: Add, update, and remove contacts for notifications.
 - **Website Management**: Add, update, and remove websites to be monitored.
 - **Integration Management**: Configure integrations for email (SMTP/Gmail API) and SMS (Twilio).

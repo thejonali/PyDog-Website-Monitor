@@ -85,6 +85,17 @@ MIGRATIONS = [
             ON incidents (website_id, status)
             """,
         ],
+    ),
+    (
+        3,
+        "notification delivery status",
+        [
+            "ALTER TABLE down_tracking ADD COLUMN incident_id INTEGER",
+            "ALTER TABLE down_tracking ADD COLUMN notification_type TEXT DEFAULT 'outage'",
+            "ALTER TABLE down_tracking ADD COLUMN notification_status TEXT DEFAULT 'sent'",
+            "ALTER TABLE down_tracking ADD COLUMN notification_channel TEXT",
+            "ALTER TABLE down_tracking ADD COLUMN notification_error TEXT",
+        ],
     )
 ]
 
@@ -112,7 +123,11 @@ def migrate_database(database_path):
                 continue
             with conn:
                 for statement in statements:
-                    conn.execute(statement)
+                    try:
+                        conn.execute(statement)
+                    except sqlite3.OperationalError as exc:
+                        if "duplicate column name" not in str(exc).lower():
+                            raise
                 conn.execute(
                     "INSERT INTO schema_migrations (version, name) VALUES (?, ?)",
                     (version, name),

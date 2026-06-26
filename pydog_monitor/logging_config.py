@@ -22,6 +22,12 @@ class JsonFormatter(logging.Formatter):
             "error_code",
             "sleep_seconds",
             "incident_id",
+            "contact_id",
+            "notification_type",
+            "notification_status",
+            "notification_channel",
+            "notification_error",
+            "provider",
         ):
             if hasattr(record, key):
                 payload[key] = getattr(record, key)

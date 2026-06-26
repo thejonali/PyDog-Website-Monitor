@@ -1,5 +1,5 @@
 from pydog_monitor.db import connect_database
-from pydog_monitor.monitor import send_email_smtp, send_email, send_sms
+from pydog_monitor.notifications import send_email_smtp, send_email, send_sms
 from pydog_monitor.security import FERNET_KEY_ENV_VAR, encrypt_secret, encryption_enabled
 
 SECRET_KEYS = {"sender_password", "auth_token"}
