@@ -1,4 +1,4 @@
-from db import connect_database
+from pydog_monitor.db import connect_database
 
 def view_contacts():
     conn = connect_database()

@@ -1,6 +1,6 @@
 from cryptography.fernet import Fernet
 
-from security import FERNET_KEY_ENV_VAR
+from pydog_monitor.security import FERNET_KEY_ENV_VAR
 
 
 def main():

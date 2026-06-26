@@ -4,13 +4,13 @@ import signal
 import sys
 import threading
 import logging
-from config import load_config
+from pydog_monitor.config import load_config
 from data.database_tables import create_database
-from errors import AppError, ConfigurationError
-from logging_config import configure_logging
+from pydog_monitor.errors import AppError, ConfigurationError
+from pydog_monitor.logging_config import configure_logging
 from handlers.contact_handler import contact_functions
 from handlers.website_handler import website_functions, view_down_history
-from website_monitor import run_monitor
+from pydog_monitor.monitor import run_monitor
 from handlers.integration_handler import setup_integrations
 
 logger = logging.getLogger(__name__)

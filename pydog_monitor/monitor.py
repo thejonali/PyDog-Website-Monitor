@@ -13,10 +13,11 @@ from googleapiclient.discovery import build
 from requests import HTTPError
 from twilio.rest import Client
 import json
-from config import load_config
-from db import connect_database
-from errors import MonitorError
-from security import SecretConfigurationError, decrypt_secret
+from pydog_monitor.config import load_config
+from pydog_monitor.db import connect_database
+from pydog_monitor.errors import MonitorError
+from pydog_monitor.incidents import record_failure, resolve_open_incident
+from pydog_monitor.security import SecretConfigurationError, decrypt_secret
 
 logger = logging.getLogger(__name__)
 
@@ -99,18 +100,10 @@ def check_website(website, headers, config):
             timeout=config.request_timeout_seconds,
         )
         if response.status_code == 200:
-            logger.info(
-                "Website check succeeded",
-                extra={
-                    "event": "website_check_ok",
-                    "website_id": website_id,
-                    "website_url": website_url,
-                    "status_code": response.status_code,
-                },
-            )
+            handle_success(website_id, website_url, response.status_code, config.database_path)
             return
 
-        notify_contact(
+        handle_failure(
             website_id,
             website_url,
             contact_id,
@@ -122,7 +115,7 @@ def check_website(website, headers, config):
             config.database_path,
         )
     except requests.RequestException as exc:
-        notify_contact(
+        handle_failure(
             website_id,
             website_url,
             contact_id,
@@ -133,6 +126,80 @@ def check_website(website, headers, config):
             str(exc),
             config.database_path,
         )
+
+
+def handle_success(website_id, website_url, status_code, database_path):
+    resolved_incident_id = resolve_open_incident(website_id, database_path)
+    if resolved_incident_id:
+        logger.info(
+            "Website incident resolved",
+            extra={
+                "event": "incident_resolved",
+                "website_id": website_id,
+                "website_url": website_url,
+                "status_code": status_code,
+                "incident_id": resolved_incident_id,
+            },
+        )
+        return
+
+    logger.info(
+        "Website check succeeded",
+        extra={
+            "event": "website_check_ok",
+            "website_id": website_id,
+            "website_url": website_url,
+            "status_code": status_code,
+        },
+    )
+
+
+def handle_failure(
+    website_id,
+    website_url,
+    contact_id,
+    contact_name,
+    preferred_contact,
+    email,
+    phone_number,
+    error_code,
+    database_path,
+):
+    incident_id, is_new_incident = record_failure(website_id, error_code, database_path)
+    if not is_new_incident:
+        logger.warning(
+            "Website is still down",
+            extra={
+                "event": "incident_still_open",
+                "website_id": website_id,
+                "website_url": website_url,
+                "error_code": error_code,
+                "incident_id": incident_id,
+            },
+        )
+        return
+
+    logger.warning(
+        "Website incident opened",
+        extra={
+            "event": "incident_opened",
+            "website_id": website_id,
+            "website_url": website_url,
+            "error_code": error_code,
+            "incident_id": incident_id,
+        },
+    )
+    notify_contact(
+        website_id,
+        website_url,
+        contact_id,
+        contact_name,
+        preferred_contact,
+        email,
+        phone_number,
+        error_code,
+        database_path,
+    )
 
 
 def notify_contact(

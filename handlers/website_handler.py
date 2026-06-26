@@ -1,5 +1,5 @@
 from handlers.contact_handler import view_contacts
-from db import connect_database
+from pydog_monitor.db import connect_database
 import re
 
 def view_websites():

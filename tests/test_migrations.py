@@ -1,6 +1,6 @@
 import sqlite3
 
-from migrations import migrate_database
+from pydog_monitor.migrations import migrate_database
 
 
 def test_migrate_database_is_idempotent(tmp_path):
@@ -18,8 +18,15 @@ def test_migrate_database_is_idempotent(tmp_path):
             WHERE integration_name = 'monitor_header' AND key = 'header'
             """
         ).fetchone()[0]
+        incident_indexes = conn.execute(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type = 'index' AND name = 'idx_incidents_website_status'
+            """
+        ).fetchone()[0]
     finally:
         conn.close()
 
-    assert migration_count == 1
+    assert migration_count == 2
     assert header_count == 1
+    assert incident_indexes == 1

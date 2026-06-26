@@ -10,6 +10,7 @@ PyDog Website Monitor is a Python-based application designed to monitor the avai
 - **Website Management**: Add, update, and remove websites to be monitored.
 - **Integration Management**: Configure integrations for email (SMTP/Gmail API) and SMS (Twilio).
 - **Down History**: View the history of website downtimes and notifications sent.
+- **Incident Lifecycle**: Open an incident on first failure, avoid duplicate alerts while it remains down, and resolve it when checks recover.
 
 ## Project Structure
 
@@ -22,7 +23,13 @@ WebsiteMonitor/
 │   ├── contact_handler.py   # Contact management functions
 │   ├── integration_handler.py # Integration setup and management
 │   ├── website_handler.py   # Website management functions
-├── website_monitor.py       # Core monitoring logic
+├── pydog_monitor/
+│   ├── config.py            # Runtime config and environment loading
+│   ├── db.py                # Shared SQLite connection helper
+│   ├── incidents.py         # Incident lifecycle persistence
+│   ├── migrations.py        # Database migrations
+│   ├── monitor.py           # Core monitoring logic
+│   ├── security.py          # Secret encryption/decryption helpers
 ├── main.py                  # Entry point for the application
 ├── .gitignore               # Git ignore file
 ├── requirements.txt         # Python dependencies

@@ -62,6 +62,29 @@ MIGRATIONS = [
             )
             """,
         ],
+    ),
+    (
+        2,
+        "incident lifecycle",
+        [
+            """
+            CREATE TABLE IF NOT EXISTS incidents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                website_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'open',
+                opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                resolved_at TIMESTAMP,
+                failure_count INTEGER NOT NULL DEFAULT 1,
+                last_error_code TEXT(50),
+                FOREIGN KEY (website_id) REFERENCES websites(id)
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_incidents_website_status
+            ON incidents (website_id, status)
+            """,
+        ],
     )
 ]
 

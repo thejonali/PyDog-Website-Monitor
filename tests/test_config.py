@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-import config as config_module
-from config import load_config
+import pydog_monitor.config as config_module
+from pydog_monitor.config import load_config
 
 
 CONFIG_ENV_VARS = [

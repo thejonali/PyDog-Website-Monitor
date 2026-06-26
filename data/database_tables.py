@@ -1,5 +1,5 @@
-from config import load_config
-from migrations import migrate_database
+from pydog_monitor.config import load_config
+from pydog_monitor.migrations import migrate_database
 
 
 def create_database(database_path=None):

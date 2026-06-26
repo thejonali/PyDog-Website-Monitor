@@ -1,6 +1,6 @@
 import sqlite3
 
-from config import load_config
+from pydog_monitor.config import load_config
 
 
 def connect_database(database_path=None):
